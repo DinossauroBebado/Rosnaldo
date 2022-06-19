@@ -21,25 +21,32 @@ void controlWheel( const std_msgs::Float32 &wheel_power,
 
         if(factor>=0){
             digitalWrite(in_one,HIGH);
+            digitalWrite(LED_BUILD_IN,HIGH);
             digitalWrite(in_two,LOW);
-            ledcWrite(pwm_pin,(unsigned int)(1023*factor));
+            ledcWrite(pwm_pin,1023*factor);
+
 
         }
         else{
             digitalWrite(in_one,LOW);
             digitalWrite(in_two,HIGH);
-            ledcWrite(pwm_pin,(unsigned int)(1023*(1.0f - factor)));
+            // ledcWrite(pwm_pin,(unsigned int)(1023*(-1*factor)));
 
         }
+
     }
 
 void rightWheel(const std_msgs::Float32 &wheel_power){
+<<<<<<< HEAD
         controlWheel(wheel_power,CANAL_A,AIN1,AIN2);
+=======
+>>>>>>> 47203d9743d31664a276171ae1ca382aaba4018a
         delay(2000);
         digitalWrite(LED_BUILD_IN,LOW);
 
 }
 
+<<<<<<< HEAD
 void leftWheel(const std_msgs::Float32 &wheel_power){
         controlWheel(wheel_power,CANAL_B,BIN1,BIN2);
         delay(1000);
@@ -48,14 +55,27 @@ void leftWheel(const std_msgs::Float32 &wheel_power){
         digitalWrite(LED_BUILD_IN,HIGH);
         delay(1000);
         digitalWrite(LED_BUILD_IN,LOW);
+=======
+void blink(const std_msgs::Float32 &wheel_power){
+       for(int i =0;i<=wheel_power.data;i++){
+        digitalWrite(LED_BUILD_IN,HIGH);
+        delay(1000);
+        digitalWrite(LED_BUILD_IN,LOW);
+        delay(1000);
+       }
+>>>>>>> 47203d9743d31664a276171ae1ca382aaba4018a
 
 
 }
 
 ros::Subscriber<std_msgs::Float32> sub_right("wheel_power_right",&rightWheel);
+<<<<<<< HEAD
 ros::Subscriber<std_msgs::Float32> sub_left("wheel_power_left",&leftWheel);
 
 
+=======
+ros::Subscriber<std_msgs::Float32> sub_left("blink",&blink);
+>>>>>>> 47203d9743d31664a276171ae1ca382aaba4018a
 void setup(){
   pinMode(PWMA, OUTPUT);//Definimos os pinos  como saída.
   pinMode(PWMB, OUTPUT);
@@ -71,6 +91,7 @@ void setup(){
   pinMode(AIN2,OUTPUT);
   pinMode(BIN1,OUTPUT);
   pinMode(BIN2,OUTPUT);
+  pinMode(LED_BUILD_IN,OUTPUT);
 
   nh.initNode();
   nh.subscribe(sub_right);
