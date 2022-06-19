@@ -35,16 +35,27 @@ void controlWheel( const std_msgs::Float32 &wheel_power,
 
 void rightWheel(const std_msgs::Float32 &wheel_power){
         controlWheel(wheel_power,CANAL_A,AIN1,AIN2);
+        delay(2000);
+        digitalWrite(LED_BUILD_IN,LOW);
 
 }
 
 void leftWheel(const std_msgs::Float32 &wheel_power){
         controlWheel(wheel_power,CANAL_B,BIN1,BIN2);
+        delay(1000);
+        digitalWrite(LED_BUILD_IN,LOW);
+        delay(1000);
+        digitalWrite(LED_BUILD_IN,HIGH);
+        delay(1000);
+        digitalWrite(LED_BUILD_IN,LOW);
+
 
 }
 
 ros::Subscriber<std_msgs::Float32> sub_right("wheel_power_right",&rightWheel);
 ros::Subscriber<std_msgs::Float32> sub_left("wheel_power_left",&leftWheel);
+
+
 void setup(){
   pinMode(PWMA, OUTPUT);//Definimos os pinos  como saída.
   pinMode(PWMB, OUTPUT);
