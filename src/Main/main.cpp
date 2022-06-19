@@ -10,7 +10,7 @@
 #define CANAL_B  1
 
 
-ros::NodeHandler nh;
+ros::NodeHandle nh;
 
 void controlWheel( const std_msgs::Float32 &wheel_power,
                    unsigned int pwm_pin,
@@ -63,7 +63,7 @@ void setup(){
 
   nh.initNode();
   nh.subscribe(sub_right);
-  nh.subsribe(sub_left);
+  nh.subscribe(sub_left);
 
 }
 
