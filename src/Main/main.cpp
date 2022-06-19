@@ -21,25 +21,37 @@ void controlWheel( const std_msgs::Float32 &wheel_power,
 
         if(factor>=0){
             digitalWrite(in_one,HIGH);
+            digitalWrite(LED_BUILD_IN,HIGH);
             digitalWrite(in_two,LOW);
-            ledcWrite(pwm_pin,(unsigned int)(1023*factor));
+            ledcWrite(pwm_pin,1023*factor);
+
 
         }
         else{
             digitalWrite(in_one,LOW);
             digitalWrite(in_two,HIGH);
-            ledcWrite(pwm_pin,(unsigned int)(1023*(1.0f - factor)));
+            // ledcWrite(pwm_pin,(unsigned int)(1023*(-1*factor)));
 
         }
+
     }
 
 void rightWheel(const std_msgs::Float32 &wheel_power){
-        controlWheel(wheel_power,CANAL_A,AIN1,AIN2);
+        delay(2000);
+        digitalWrite(LED_BUILD_IN,LOW);
 
 }
 
 void leftWheel(const std_msgs::Float32 &wheel_power){
-        controlWheel(wheel_power,CANAL_B,BIN1,BIN2);
+       for(int i =0;i<=wheel_power;i++){
+        delay(1000);
+        digitalWrite(LED_BUILD_IN,LOW);
+        delay(1000);
+        digitalWrite(LED_BUILD_IN,HIGH);
+        delay(1000);
+        digitalWrite(LED_BUILD_IN,LOW);
+       }
+
 
 }
 
@@ -60,6 +72,7 @@ void setup(){
   pinMode(AIN2,OUTPUT);
   pinMode(BIN1,OUTPUT);
   pinMode(BIN2,OUTPUT);
+  pinMode(LED_BUILD_IN,OUTPUT);
 
   nh.initNode();
   nh.subscribe(sub_right);
