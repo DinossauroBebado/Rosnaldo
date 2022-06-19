@@ -42,21 +42,19 @@ void rightWheel(const std_msgs::Float32 &wheel_power){
 
 }
 
-void leftWheel(const std_msgs::Float32 &wheel_power){
-       for(int i =0;i<=wheel_power;i++){
-        delay(1000);
-        digitalWrite(LED_BUILD_IN,LOW);
-        delay(1000);
+void blink(const std_msgs::Float32 &wheel_power){
+       for(int i =0;i<=wheel_power.data;i++){
         digitalWrite(LED_BUILD_IN,HIGH);
         delay(1000);
         digitalWrite(LED_BUILD_IN,LOW);
+        delay(1000);
        }
 
 
 }
 
 ros::Subscriber<std_msgs::Float32> sub_right("wheel_power_right",&rightWheel);
-ros::Subscriber<std_msgs::Float32> sub_left("wheel_power_left",&leftWheel);
+ros::Subscriber<std_msgs::Float32> sub_left("blink",&blink);
 void setup(){
   pinMode(PWMA, OUTPUT);//Definimos os pinos  como saída.
   pinMode(PWMB, OUTPUT);
