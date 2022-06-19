@@ -16,14 +16,14 @@
 ros::NodeHandle  nh;
 
 void messageCb( const std_msgs::Empty& toggle_msg){
-  digitalWrite(LED_BUILT_IN, HIGH-digitalRead(LED_BUILT_IN));   // blink the led
+  digitalWrite(LED_BUILD_IN, HIGH-digitalRead(LED_BUILT_IN));   // blink the led
 }
 
 ros::Subscriber<std_msgs::Empty> sub("toggle_led", &messageCb );
 
 void setup()
 { 
-  pinMode(LED_BUILT_IN, OUTPUT);
+  pinMode(LED_BUILD_IN, OUTPUT);
   nh.initNode();
   nh.subscribe(sub);
 }
