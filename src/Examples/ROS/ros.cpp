@@ -3,6 +3,11 @@
  * Blinks an LED on callback
  */
 
+// ROS 
+// roscore
+// rosrun rosserial_python serial_node.py /dev/ttyUSB0
+//rostopic pub toggle_led std_msgs/Empty --once
+
 #include <Main/config.h> 
 #include<Arduino.h>
 #include <ros.h>
