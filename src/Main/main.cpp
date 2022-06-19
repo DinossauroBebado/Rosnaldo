@@ -1,5 +1,5 @@
 //import the pin out from the eletronics 
-#include "config.h"
+#include <config.h>
 //hardware control 
 #include <Arduino.h>
 //ROS-----
@@ -12,29 +12,7 @@
 
 ros::NodeHandle nh;
 
-void controlWheel( const std_msgs::Float32 &wheel_power,
-                   unsigned int pwm_pin,
-                   unsigned int in_one,
-                   unsigned int in_two)
-    {
-        float factor = max(min(wheel_power.data,1.0f),-1.0f);
 
-        if(factor>=0){
-            digitalWrite(in_one,HIGH);
-            digitalWrite(LED_BUILD_IN,HIGH);
-            digitalWrite(in_two,LOW);
-            ledcWrite(pwm_pin,1023*factor);
-
-
-        }
-        else{
-            digitalWrite(in_one,LOW);
-            digitalWrite(in_two,HIGH);
-            // ledcWrite(pwm_pin,(unsigned int)(1023*(-1*factor)));
-
-        }
-
-    }
 
 void rightWheel(const std_msgs::Float32 &wheel_power){
         controlWheel(wheel_power,CANAL_A,AIN1,AIN2);
@@ -43,7 +21,6 @@ void rightWheel(const std_msgs::Float32 &wheel_power){
 
 }
 
-
 void leftWheel(const std_msgs::Float32 &wheel_power){
         controlWheel(wheel_power,CANAL_B,BIN1,BIN2);
         digitalWrite(LED_BUILD_IN,LOW);
@@ -51,6 +28,7 @@ void leftWheel(const std_msgs::Float32 &wheel_power){
         digitalWrite(LED_BUILD_IN,HIGH);
         delay(1000);
         digitalWrite(LED_BUILD_IN,LOW);
+<<<<<<< HEAD
 }
 
 void blink(const std_msgs::Float32 &wheel_power){
@@ -62,6 +40,25 @@ ros::Subscriber<std_msgs::Float32> sub_right("wheel_power_right",&rightWheel);
 ros::Subscriber<std_msgs::Float32> sub_left("wheel_power_left",&leftWheel);
 
 
+=======
+
+
+}
+
+ros::Subscriber<std_msgs::Float32> sub_right("wheel_power_right",&rightWheel);
+<<<<<<< HEAD
+ros::Subscriber<std_msgs::Float32> blink_sub("blink",&blink);
+
+=======
+<<<<<<< HEAD
+ros::Subscriber<std_msgs::Float32> sub_left("wheel_power_left",&leftWheel);
+
+
+=======
+ros::Subscriber<std_msgs::Float32> sub_left("blink",&blink);
+>>>>>>> 47203d9743d31664a276171ae1ca382aaba4018a
+>>>>>>> 56d139a9a32d21b52f1a64ac31ec9cd829231fae
+>>>>>>> 05b8d81d11cc11b3ab62d5982a3daab753b272e5
 void setup(){
   pinMode(PWMA, OUTPUT);//Definimos os pinos  como saída.
   pinMode(PWMB, OUTPUT);
@@ -81,7 +78,7 @@ void setup(){
 
   nh.initNode();
   nh.subscribe(sub_right);
-  nh.subscribe(sub_left);
+  nh.subscribe(blink_sub);
 
 }
 
