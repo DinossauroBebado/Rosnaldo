@@ -5,52 +5,90 @@
 //ROS-----
 #include <ros.h>
 #include <std_msgs/Float32.h>
-
+#include <geometry_msgs/Twist.h>
+//general use
+#include <math.h>
+//define motor channels 
 #define CANAL_R  0
 #define CANAL_L  1
-
+#define PWM_MIM 0
+#define PWM_MAX 1023
 
 ros::NodeHandle nh;
+//rosrun teleop_twist_keyboard teleop_twist_keyboard.py 
+// rosrun rosserial_python serial_node.py /dev/ttyUSB0
 
-void controlWheel( const std_msgs::Float32 &wheel_power,
+
+bool _connect = false ;
+
+float mapPwm(float x , float mim, float max){
+    return x*(max - mim) + mim ; 
+}
+
+//check if the conections is up 
+bool rosConnected(){
+    bool connected = nh.connected();
+    if(_connect != connected){
+        _connect = connected;
+        digitalWrite(LED_BUILD_IN,!connected);
+    }
+    return connected;
+}
+
+
+
+//send comands to H bridge 
+void controlWheel( uint16_t PWM,
+                   int dir,
                    unsigned int channel,
                    unsigned int in_one,
                    unsigned int in_two)
     {
-        float factor = wheel_power.data ;
+      
 
-        if(factor > 1){
-            factor = 1; 
-        }
-        if(factor < -1){
-            factor = -1; 
-        }
-
-        if(factor>=0){
+        if(dir>=0){
             //frente
             digitalWrite(in_one,LOW);
             digitalWrite(in_two,HIGH);
-            ledcWrite(channel,1023*factor);
+            ledcWrite(channel,PWM);
         }else{
             // tras
             digitalWrite(in_one,HIGH);
             digitalWrite(in_two,LOW);
-            ledcWrite(channel,-1023*factor);
+            ledcWrite(channel,PWM);
         }
         
 
     }
 
-void rightWheel(const std_msgs::Float32 &wheel_power){
-        controlWheel(wheel_power,CANAL_R,AIN1,AIN2);
-        
+//break
+void stop(){
+    controlWheel(0,0,CANAL_R,AIN1,AIN2);
+    controlWheel(0,0,CANAL_L,BIN1,BIN2);
 }
-void leftWheel(const std_msgs::Float32 &wheel_power){
-        controlWheel(wheel_power,CANAL_L,BIN1,BIN2);
-        
+//receive from ros and send to hardware
+void onTwist(const geometry_msgs::Twist &msg){
+
+    if(!_connect){
+        //stop
+        stop();
+        return;
+    }
+
+    
+    //lazy calc
+    float left = (msg.linear.x - msg.angular.z)/2;
+    float right = (msg.linear.x + msg.angular.z)/2;
+    //map to pwm range
+    uint16_t leftPWM = mapPwm(fabs(left),PWM_MIM,PWM_MAX);
+    uint16_t rightPWM = mapPwm(fabs(right),PWM_MIM,PWM_MAX);
+
+    controlWheel(rightPWM,right,CANAL_R,AIN1,AIN2);
+    controlWheel(leftPWM,left,CANAL_L,BIN1,BIN2);
+    
 }
 
-
+//blink in case of test 
 void blink(const std_msgs::Float32 &wheel_power){
        for(int i =0;i<=wheel_power.data;i++){
         digitalWrite(LED_BUILD_IN,HIGH);
@@ -60,12 +98,12 @@ void blink(const std_msgs::Float32 &wheel_power){
        }
 }
 
-ros::Subscriber<std_msgs::Float32> sub_right("wheel_power_right",&rightWheel);
-ros::Subscriber<std_msgs::Float32> sub_left("wheel_power_left",&leftWheel);
 ros::Subscriber<std_msgs::Float32> blink_sub("blink",&blink);
+ros::Subscriber<geometry_msgs::Twist> sub("cmd_vel",&onTwist);
 
 
 void setup(){
+  //------------motors  
   pinMode(PWMA, OUTPUT);//Definimos os pinos  como saída.
   pinMode(PWMB, OUTPUT);
   
@@ -82,16 +120,17 @@ void setup(){
   pinMode(BIN2,OUTPUT);
   
   pinMode(LED_BUILD_IN,OUTPUT);
-
+  digitalWrite(LED_BUILD_IN,HIGH);
+ //-----------ros---------------
   nh.initNode();
-  nh.subscribe(sub_right);
-  nh.subscribe(sub_left);
+  nh.subscribe(sub);
   nh.subscribe(blink_sub);
 
 }
 
 void loop(){
-    
+    if(!rosConnected())
+        stop();
     nh.spinOnce();
 
 }
