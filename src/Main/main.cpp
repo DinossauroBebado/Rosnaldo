@@ -38,33 +38,32 @@ bool rosConnected(){
 
 
 //send comands to H bridge 
-void controlWheel( uint16_t PWM,
-                   int dir,
-                   unsigned int channel,
-                   unsigned int in_one,
-                   unsigned int in_two)
-    {
+// void controlWheel( uint16_t PWM,
+//                    int dir,
+//                    unsigned int channel,
+//                    unsigned int in_one,
+//                    unsigned int in_two)
+//     {
       
 
-        if(dir>=0){
-            //frente
-            digitalWrite(in_one,LOW);
-            digitalWrite(in_two,HIGH);
-            ledcWrite(channel,PWM);
-        }else{
-            // tras
-            digitalWrite(in_one,HIGH);
-            digitalWrite(in_two,LOW);
-            ledcWrite(channel,PWM);
-        }
-        
+//             //frente
+//             digitalWrite(in_one,dir>0);
+//             digitalWrite(in_two,dir);
+//             ledcWrite(channel,PWM);
+//                    // tras
+                 
 
-    }
+//     }
 
 //break
 void stop(){
-    controlWheel(0,0,CANAL_R,AIN1,AIN2);
-    controlWheel(0,0,CANAL_L,BIN1,BIN2);
+    digitalWrite(AIN1,LOW);
+    digitalWrite(AIN2,LOW);
+    digitalWrite(BIN1,LOW);
+    digitalWrite(BIN2,LOW); 
+
+    ledcWrite(CANAL_L,0);
+    ledcWrite(CANAL_R,0);
 }
 //receive from ros and send to hardware
 void onTwist(const geometry_msgs::Twist &msg){
@@ -80,11 +79,17 @@ void onTwist(const geometry_msgs::Twist &msg){
     float left = (msg.linear.x - msg.angular.z)/2;
     float right = (msg.linear.x + msg.angular.z)/2;
     //map to pwm range
-    uint16_t leftPWM = mapPwm(fabs(left),PWM_MIM,PWM_MAX);
+    uint16_t leftPWM  = mapPwm(fabs(left),PWM_MIM,PWM_MAX);
     uint16_t rightPWM = mapPwm(fabs(right),PWM_MIM,PWM_MAX);
 
-    controlWheel(rightPWM,right,CANAL_R,AIN1,AIN2);
-    controlWheel(leftPWM,left,CANAL_L,BIN1,BIN2);
+    digitalWrite(AIN1,left<0);
+    digitalWrite(AIN2,left>0);
+    digitalWrite(BIN1,right<0);
+    digitalWrite(BIN2,right>0); 
+
+    ledcWrite(CANAL_L,leftPWM);
+    ledcWrite(CANAL_R,rightPWM);
+
     
 }
 

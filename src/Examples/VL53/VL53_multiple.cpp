@@ -1,6 +1,7 @@
 #include <Adafruit_VL53L0X.h>
 #include <Arduino.h>
 #include <Wire.h>
+#include <Main/config.h>  
 
 // Define which Wire objects to use, may depend on platform
 // or on your configurations.
@@ -46,11 +47,11 @@ Adafruit_VL53L0X sensor4;
 // Setup for 4 sensors
 sensorList_t sensors[] = {
 #ifndef ARDUINO_ARCH_AVR // not enough memory on uno for 4 objects
-    {&sensor1, &SENSOR1_WIRE, 0x30, 5, 1,
-     Adafruit_VL53L0X::VL53L0X_SENSE_LONG_RANGE, 0, 0},
-    {&sensor2, &SENSOR2_WIRE, 0x31, 18, 3,
-     Adafruit_VL53L0X::VL53L0X_SENSE_HIGH_SPEED, 0, 0},
-    {&sensor3, &SENSOR3_WIRE, 0x32, 19, 5,
+    {&sensor1, &SENSOR1_WIRE, 0x30, XSHUTA, 1,
+    Adafruit_VL53L0X::VL53L0X_SENSE_DEFAULT, 0, 0},
+    {&sensor2, &SENSOR2_WIRE, 0x31, XSHUTB, 3,
+     Adafruit_VL53L0X::VL53L0X_SENSE_DEFAULT, 0, 0},
+    {&sensor3, &SENSOR3_WIRE, 0x32, XSHUTC, 5,
      Adafruit_VL53L0X::VL53L0X_SENSE_DEFAULT, 0, 0}
     
 #else
