@@ -1,31 +1,41 @@
-//import the pin out from the eletronics 
-#include "config.h"
-//hardware control 
-#include <Arduino.h>
-//ROS-----
 #include <ros.h>
+#include <std_msgs/Int16.h>
 #include <std_msgs/Float32.h>
 #include <geometry_msgs/Twist.h>
-//general use
-#include <math.h>
-//define motor channels 
+#include <Arduino.h>
+
+#include <Main/config.h>
+#include <RotaryEncoder.h>
+#define LOOP_TIME        200000  
 #define CANAL_R  0
 #define CANAL_L  1
-#define PWM_MIM 0
+#define PWM_MIM 150
 #define PWM_MAX 1023
+#define SATURATION 1020
 
-ros::NodeHandle nh;
-//rosrun teleop_twist_keyboard teleop_twist_keyboard.py 
-// rosrun rosserial_python serial_node.py /dev/ttyUSB0
 
+unsigned int counter_left=0;
+unsigned int counter_right = 0;
+float radius = RADIUS; //wheel radius
+float pi = 3.1415;
+float L =DISTANCE; //distance between wheels
 
 bool _connect = false ;
 
-float mapPwm(float x , float mim, float max){
-    return x*(max - mim) + mim ; 
-}
+RotaryEncoder encoderRight(ENCODERRA, ENCODERRB);
+RotaryEncoder encoderLeft(ENCODERLA, ENCODERLB);
 
-//check if the conections is up 
+
+ros::NodeHandle  nh;
+std_msgs::Float32 left_wheel_vel;
+ros::Publisher left_wheel_vel_pub("/left_wheel_velocity", &left_wheel_vel);
+
+std_msgs::Float32 right_wheel_vel;
+ros::Publisher right_wheel_vel_pub("/right_wheel_velocity", &right_wheel_vel);
+
+geometry_msgs::Twist sensor_vel;
+ros::Publisher sensor_vel_pub("/sensor_velocity", &sensor_vel);
+
 bool rosConnected(){
     bool connected = nh.connected();
     if(_connect != connected){
@@ -37,25 +47,61 @@ bool rosConnected(){
 
 
 
-//send comands to H bridge 
-// void controlWheel( uint16_t PWM,
-//                    int dir,
-//                    unsigned int channel,
-//                    unsigned int in_one,
-//                    unsigned int in_two)
-//     {
-      
+ void timerIsr()
+{
+    //stop the timer
+  //Left Motor Speed 
+  left_wheel_vel.data = float(counter_left)*2*5/8;
+  left_wheel_vel_pub.publish(&left_wheel_vel);
+  right_wheel_vel.data = float(counter_right)*2*pi*5/8;
+  right_wheel_vel_pub.publish(&right_wheel_vel);
+  sensor_vel.linear.x = radius*(left_wheel_vel.data + right_wheel_vel.data)/2;
+  sensor_vel.linear.y = 0;
+  sensor_vel.linear.z = 0;
+  sensor_vel.angular.x = 0;
+  sensor_vel.angular.y = 0;
+  sensor_vel.angular.z = radius*(left_wheel_vel.data + right_wheel_vel.data)/L;
+  sensor_vel_pub.publish(&sensor_vel);
+  counter_right=0;
+  counter_left=0;
+ 
+}
+ 
+//recieve comands already for each wheel 
+void cmdLeftWheelCB( const std_msgs::Int16& msg)
+{
+  if(msg.data >= 0)
+  {
+    
+    ledcWrite(CANAL_L,msg.data);
+    digitalWrite(AIN1, LOW);
+    digitalWrite(AIN2, HIGH);  
+  }
+  else
+  {
+    ledcWrite(CANAL_L,-msg.data);
+    digitalWrite(AIN1, HIGH);
+    digitalWrite(AIN2, LOW);
+  }
+}
 
-//             //frente
-//             digitalWrite(in_one,dir>0);
-//             digitalWrite(in_two,dir);
-//             ledcWrite(channel,PWM);
-//                    // tras
-                 
+void cmdRightWheelCB( const std_msgs::Int16& msg)
+{
+  
+  if(msg.data >= 0)
+  {
+    ledcWrite(CANAL_R,msg.data);
+    digitalWrite(BIN1, LOW);
+    digitalWrite(BIN2, HIGH);  
+  }
+  else
+  {
+     ledcWrite(CANAL_R,msg.data);
+     digitalWrite(BIN1, HIGH);
+     digitalWrite(BIN2, LOW);
+  }
+}
 
-//     }
-
-//break
 void stop(){
     digitalWrite(AIN1,LOW);
     digitalWrite(AIN2,LOW);
@@ -65,49 +111,45 @@ void stop(){
     ledcWrite(CANAL_L,0);
     ledcWrite(CANAL_R,0);
 }
-//receive from ros and send to hardware
-void onTwist(const geometry_msgs::Twist &msg){
 
-    if(!_connect){
-        //stop
-        stop();
-        return;
-    }
+ros::Subscriber<std_msgs::Int16> subCmdLeft("cmd_left_wheel", cmdLeftWheelCB );
+ros::Subscriber<std_msgs::Int16> subCmdRight("cmd_right_wheel",cmdRightWheelCB );
 
-    
-    //lazy calc
-    float left = (msg.linear.x - msg.angular.z)/2;
-    float right = (msg.linear.x + msg.angular.z)/2;
-    //map to pwm range
-    uint16_t leftPWM  = mapPwm(fabs(left),PWM_MIM,PWM_MAX);
-    uint16_t rightPWM = mapPwm(fabs(right),PWM_MIM,PWM_MAX);
-
-    digitalWrite(AIN1,left<0);
-    digitalWrite(AIN2,left>0);
-    digitalWrite(BIN1,right<0);
-    digitalWrite(BIN2,right>0); 
-
-    ledcWrite(CANAL_L,leftPWM);
-    ledcWrite(CANAL_R,rightPWM);
-
-    
+//receive the twsit msg and figure out the speed of each wheel 
+void cmdVelCB( const geometry_msgs::Twist& twist)
+{
+  int gain = 900;
+  float left_wheel_data = gain*(twist.linear.x - twist.angular.z*L);
+  float right_wheel_data = gain*(twist.linear.x + twist.angular.z*L);
+  if(left_wheel_data >= 0)
+  { 
+    ledcWrite(CANAL_L,abs(left_wheel_data));
+    digitalWrite(AIN1, LOW);
+    digitalWrite(AIN2, HIGH);  
+  }
+  else
+  {
+    ledcWrite(CANAL_L,abs(left_wheel_data));
+    digitalWrite(AIN1, HIGH);
+    digitalWrite(AIN2, LOW);
+  }
+  if(right_wheel_data >= 0)
+  {
+    ledcWrite(CANAL_R,abs(right_wheel_data));
+    digitalWrite(BIN1, LOW);
+    digitalWrite(BIN2, HIGH);  
+  }
+  else
+  {
+     ledcWrite(CANAL_R,abs(right_wheel_data));
+    digitalWrite(BIN1, HIGH);
+    digitalWrite(BIN2, LOW);
+  }
 }
-
-//blink in case of test 
-void blink(const std_msgs::Float32 &wheel_power){
-       for(int i =0;i<=wheel_power.data;i++){
-        digitalWrite(LED_BUILD_IN,HIGH);
-        delay(1000);
-        digitalWrite(LED_BUILD_IN,LOW);
-        delay(1000);
-       }
-}
-
-ros::Subscriber<std_msgs::Float32> blink_sub("blink",&blink);
-ros::Subscriber<geometry_msgs::Twist> sub("cmd_vel",&onTwist);
+ros::Subscriber<geometry_msgs::Twist> subCmdVel("cmd_vel", cmdVelCB);
 
 
-void setup(){
+void setup() {
   //------------motors  
   pinMode(PWMA, OUTPUT);//Definimos os pinos  como saída.
   pinMode(PWMB, OUTPUT);
@@ -126,16 +168,55 @@ void setup(){
   
   pinMode(LED_BUILD_IN,OUTPUT);
   digitalWrite(LED_BUILD_IN,HIGH);
- //-----------ros---------------
+
+
+  //Setup for encoders
+ 
+ 
+  
   nh.initNode();
-  nh.subscribe(sub);
-  nh.subscribe(blink_sub);
+  nh.subscribe(subCmdRight);
+  nh.subscribe(subCmdLeft);
+  nh.subscribe(subCmdVel);
+  nh.advertise(left_wheel_vel_pub);
+  nh.advertise(right_wheel_vel_pub);
+  nh.advertise(sensor_vel_pub);
 
 }
 
-void loop(){
-    if(!rosConnected())
+void loop() 
+{
+     if(!rosConnected())
         stop();
+    
+    //encoder
+  
+    encoderRight.tick();
+    //invert because the gear spin contrary to the wheel so if the wheel goes forward the encoder goes backwards 
+    int counter_right = -encoderRight.getPosition();
+   
+   
+    encoderLeft.tick();
+    int counter_left = -encoderLeft.getPosition();
+   
+    
+
+    left_wheel_vel.data = float(counter_left)*((2*pi*RADIUS)/TICKS);
+    left_wheel_vel_pub.publish(&left_wheel_vel);
+    right_wheel_vel.data = float(counter_right)*((2*pi*RADIUS)/TICKS);
+    right_wheel_vel_pub.publish(&right_wheel_vel);
+    sensor_vel.linear.x = radius*(left_wheel_vel.data + right_wheel_vel.data)/2;
+    sensor_vel.linear.y = 0;
+    sensor_vel.linear.z = 0;
+    sensor_vel.angular.x = 0;
+    sensor_vel.angular.y = 0;
+    sensor_vel.angular.z = radius*(left_wheel_vel.data + right_wheel_vel.data)/L;
+    sensor_vel_pub.publish(&sensor_vel);
+    counter_right=0;
+    counter_left=0;
     nh.spinOnce();
 
 }
+
+
+
