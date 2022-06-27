@@ -13,6 +13,19 @@
 #define PWM_MAX 1023
 #define SATURATION 1020
 
+int adc_read_counter = 0;
+int SamplingRate = 1000; //Read 1000 values in one second.
+
+int prev_tick_right = 0;
+int prev_tick_left = 0;
+hw_timer_t * timer = NULL; 
+volatile bool interruptbool1 = false;
+
+/*Interrupt routine for Timer overflow event*/
+void IRAM_ATTR onTimer() {
+   interruptbool1 = true; //Indicates that the interrupt has been entered since the last time its value was changed to false 
+}
+
 
 unsigned int counter_left=0;
 unsigned int counter_right = 0;
@@ -36,6 +49,12 @@ ros::Publisher right_wheel_vel_pub("/right_wheel_velocity", &right_wheel_vel);
 geometry_msgs::Twist sensor_vel;
 ros::Publisher sensor_vel_pub("/sensor_velocity", &sensor_vel);
 
+std_msgs::Float32 tick_right_msg;
+ros::Publisher tick_right_pub("status/ticks_right",&tick_right_msg);
+
+std_msgs::Float32 X_msg;
+ros::Publisher X_pub("status/pose/X",&X_msg);
+
 bool rosConnected(){
     bool connected = nh.connected();
     if(_connect != connected){
@@ -47,25 +66,25 @@ bool rosConnected(){
 
 
 
- void timerIsr()
-{
-    //stop the timer
-  //Left Motor Speed 
-  left_wheel_vel.data = float(counter_left)*2*5/8;
-  left_wheel_vel_pub.publish(&left_wheel_vel);
-  right_wheel_vel.data = float(counter_right)*2*pi*5/8;
-  right_wheel_vel_pub.publish(&right_wheel_vel);
-  sensor_vel.linear.x = radius*(left_wheel_vel.data + right_wheel_vel.data)/2;
-  sensor_vel.linear.y = 0;
-  sensor_vel.linear.z = 0;
-  sensor_vel.angular.x = 0;
-  sensor_vel.angular.y = 0;
-  sensor_vel.angular.z = radius*(left_wheel_vel.data + right_wheel_vel.data)/L;
-  sensor_vel_pub.publish(&sensor_vel);
-  counter_right=0;
-  counter_left=0;
+//  void timerIsr()
+// {
+//     //stop the timer
+//   //Left Motor Speed 
+//     left_wheel_vel.data = float(counter_left)*((2*pi*RADIUS)/TICKS);
+//     left_wheel_vel_pub.publish(&left_wheel_vel);
+//     right_wheel_vel.data = float(counter_right)*((2*pi*RADIUS)/TICKS);
+//     right_wheel_vel_pub.publish(&right_wheel_vel);
+//     sensor_vel.linear.x = radius*(left_wheel_vel.data + right_wheel_vel.data)/2;
+//     sensor_vel.linear.y = 0;
+//     sensor_vel.linear.z = 0;
+//     sensor_vel.angular.x = 0;
+//     sensor_vel.angular.y = 0;
+//     sensor_vel.angular.z = radius*(left_wheel_vel.data + right_wheel_vel.data)/L;
+//     sensor_vel_pub.publish(&sensor_vel);
+//     counter_right=0;
+//     counter_left=0;
  
-}
+// }
  
 //recieve comands already for each wheel 
 void cmdLeftWheelCB( const std_msgs::Int16& msg)
@@ -172,7 +191,11 @@ void setup() {
 
   //Setup for encoders
  
- 
+  timer = timerBegin(0, 80, true);                //Begin timer with 1 MHz frequency (80MHz/80)
+  timerAttachInterrupt(timer, &onTimer, true);   //Attach the interrupt to Timer1
+  unsigned int timerFactor = 1000000/SamplingRate; //Calculate the time interval between two readings, or more accurately, the number of cycles between two readings
+  timerAlarmWrite(timer, timerFactor, true);      //Initialize the timer
+  timerAlarmEnable(timer); 
   
   nh.initNode();
   nh.subscribe(subCmdRight);
@@ -181,11 +204,20 @@ void setup() {
   nh.advertise(left_wheel_vel_pub);
   nh.advertise(right_wheel_vel_pub);
   nh.advertise(sensor_vel_pub);
+  nh.advertise(tick_right_pub);
+  nh.advertise(X_pub);
+
+ 
 
 }
 
 void loop() 
-{
+{   
+    if(interruptbool1)
+    {
+      analogRead(36);
+      interruptbool1 = false;
+    }
      if(!rosConnected())
         stop();
     
@@ -194,16 +226,17 @@ void loop()
     encoderRight.tick();
     //invert because the gear spin contrary to the wheel so if the wheel goes forward the encoder goes backwards 
     int counter_right = -encoderRight.getPosition();
-   
+    
    
     encoderLeft.tick();
     int counter_left = -encoderLeft.getPosition();
-   
-    
 
-    left_wheel_vel.data = float(counter_left)*((2*pi*RADIUS)/TICKS);
+    tick_right_msg.data = counter_right ;
+    tick_right_pub.publish(&tick_right_msg);
+   
+    left_wheel_vel.data = 100*float(counter_left-prev_tick_left)*((2*pi*RADIUS)/TICKS);
     left_wheel_vel_pub.publish(&left_wheel_vel);
-    right_wheel_vel.data = float(counter_right)*((2*pi*RADIUS)/TICKS);
+    right_wheel_vel.data = 100*float(counter_right-prev_tick_right)*((2*pi*RADIUS)/TICKS);
     right_wheel_vel_pub.publish(&right_wheel_vel);
     sensor_vel.linear.x = radius*(left_wheel_vel.data + right_wheel_vel.data)/2;
     sensor_vel.linear.y = 0;
@@ -212,8 +245,14 @@ void loop()
     sensor_vel.angular.y = 0;
     sensor_vel.angular.z = radius*(left_wheel_vel.data + right_wheel_vel.data)/L;
     sensor_vel_pub.publish(&sensor_vel);
-    counter_right=0;
-    counter_left=0;
+
+
+    X_msg.data = radius*(float(counter_left)*((2*pi*RADIUS)/TICKS) + float(counter_right)*((2*pi*RADIUS)/TICKS))/2;//
+    X_pub.publish(&X_msg);
+    prev_tick_left = counter_left;
+    prev_tick_right = counter_right;
+
+  
     nh.spinOnce();
 
 }
